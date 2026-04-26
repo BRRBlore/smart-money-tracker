@@ -110,26 +110,65 @@ def load_data() -> pd.DataFrame:
 
 # ── Charts ────────────────────────────────────────────────────────────────────
 def chart_leaderboard(df):
-    grade_colors = {"A+":"#1B5E20","A ":"#388E3C","B ":"#F9A825",
-                    "C ":"#E65100","D ":"#B71C1C"}
-    colors = []
-    for g in df.get("Grade", pd.Series()):
-        c = "#888"
-        for k, v in grade_colors.items():
-            if k.strip() in str(g): c = v; break
-        colors.append(c)
+    # Sort by signal priority: STRONG BUY → BUY → WATCH → FAIR VALUE → OVERVALUED
+    signal_order = {
+        "STRONG BUY": 0,
+        "BUY":        1,
+        "WATCH":      2,
+        "FAIR VALUE": 3,
+    }
+    def _signal_rank(val):
+        s = str(val).upper()
+        if "STRONG BUY" in s: return 0
+        if "BUY"        in s: return 1
+        if "WATCH"      in s: return 2
+        if "FAIR VALUE" in s: return 3
+        return 4  # OVERVALUED or unknown
+
+    df = df.copy()
+    df["_signal_rank"] = df.get("Value_Signal", pd.Series("", index=df.index)).apply(_signal_rank)
+    # Sort: signal rank first, then score descending within each group
+    # Reverse for horizontal bar chart (top of chart = first row = lowest index)
+    # Plotly horizontal bar renders bottom-to-top, so we reverse:
+    # rank 4 (OVERVALUED) first → appears at bottom of chart
+    # rank 0 (STRONG BUY) last  → appears at top of chart
+    df = df.sort_values(["_signal_rank", "Smart_Money_Score"],
+                        ascending=[True, True]).reset_index(drop=True)
+
+    # Colour by signal
+    signal_colors = {
+        0: "#1B5E20",   # STRONG BUY — dark green
+        1: "#388E3C",   # BUY — green
+        2: "#F9A825",   # WATCH — amber
+        3: "#1565C0",   # FAIR VALUE — blue
+        4: "#B71C1C",   # OVERVALUED — red
+    }
+    colors = [signal_colors.get(r, "#888") for r in df["_signal_rank"]]
+
+    # Label = Signal + Score
+    labels = []
+    for _, row in df.iterrows():
+        sig = str(row.get("Value_Signal", ""))
+        score = row.get("Smart_Money_Score", 0)
+        labels.append(f"{sig}  ({score:.0f})")
+
     fig = go.Figure(go.Bar(
-        x=df["Smart_Money_Score"], y=df["Name"], orientation="h",
+        x=df["Smart_Money_Score"],
+        y=df["Name"],
+        orientation="h",
         marker_color=colors,
-        text=df.get("Grade",""), textposition="outside",
+        text=labels,
+        textposition="outside",
+        textfont=dict(size=9),
     ))
     fig.add_vline(x=60, line_dash="dash", line_color="#1565C0",
                   annotation_text="Buy threshold")
     fig.update_layout(
-        title="Smart Money Score Leaderboard",
-        xaxis=dict(title="Score (0–100)", range=[0, 115]),
-        yaxis=dict(title=""), height=max(350, len(df)*32),
-        margin=dict(l=160, r=80, t=50, b=40),
+        title="Smart Money Score Leaderboard — sorted by Signal",
+        xaxis=dict(title="Score (0–100)", range=[0, 130]),
+        yaxis=dict(title=""),
+        height=max(350, len(df)*32),
+        margin=dict(l=160, r=140, t=50, b=40),
     )
     return fig
 

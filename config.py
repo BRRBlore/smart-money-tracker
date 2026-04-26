@@ -77,5 +77,5 @@ DATA_CSV      = "data/smart_money_data.csv"
 CACHE_CSV     = "data/screener_cache.csv"
 
 # --- App display ---
-APP_TITLE     = "📊 Smart Money Tracker — Value Edition"
+APP_TITLE     = "📊 Bapi's Smart Money Tracker — Value Edition"
 REFRESH_HOURS = 24    # How old cached data can be before forced refresh

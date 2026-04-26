@@ -273,6 +273,16 @@ with st.sidebar:
     dii_filter  = st.checkbox("DII Buying 4Q+")
     sig_filter  = st.multiselect("Value Signal",
                     ["STRONG BUY","BUY","WATCH","FAIR VALUE","OVERVALUED"])
+
+    # Company search — populated dynamically via session state
+    company_search = st.multiselect(
+        "🔎 Search Company",
+        options=st.session_state.get("all_company_names", []),
+        default=[],
+        placeholder="Type company name to search...",
+        key="company_search",
+    )
+
     st.divider()
     with st.expander("📐 Score Weights"):
         for f, w in SCORE_WEIGHTS.items():
@@ -294,7 +304,13 @@ if df.empty:
         st.warning("No data. Click **Quick Refresh** in sidebar.")
     st.stop()
 
-# Sector filter
+# Store company names in session state so the search box above can use them
+if "Name" in df.columns:
+    all_names = sorted(df["Name"].dropna().unique().tolist())
+    if st.session_state.get("all_company_names") != all_names:
+        st.session_state["all_company_names"] = all_names
+
+# Sector filter (populated after data loads)
 with st.sidebar:
     secs = sorted(df["Sector"].unique().tolist()) if "Sector" in df.columns else []
     sectors = st.multiselect("Sectors", options=secs, default=secs,
@@ -313,6 +329,8 @@ if fii_filter and "FII_Selling_4Q" in flt.columns:
     flt = flt[flt["FII_Selling_4Q"].astype(bool)]
 if dii_filter and "DII_Buying_4Q" in flt.columns:
     flt = flt[flt["DII_Buying_4Q"].astype(bool)]
+if company_search and "Name" in flt.columns:
+    flt = flt[flt["Name"].isin(company_search)]
 
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────

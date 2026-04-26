@@ -227,6 +227,10 @@ def signal_badge(sig):
     return sig
 
 
+# ── Load data BEFORE sidebar so company names are available ──────────────────
+df = load_data()
+_all_names = sorted(df["Name"].dropna().unique().tolist()) if "Name" in df.columns else []
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.title("⚙️ Controls")
@@ -274,10 +278,9 @@ with st.sidebar:
     sig_filter  = st.multiselect("Value Signal",
                     ["STRONG BUY","BUY","WATCH","FAIR VALUE","OVERVALUED"])
 
-    # Company search — populated dynamically via session state
     company_search = st.multiselect(
         "🔎 Search Company",
-        options=st.session_state.get("all_company_names", []),
+        options=_all_names,
         default=[],
         placeholder="Type company name to search...",
         key="company_search",
@@ -288,9 +291,6 @@ with st.sidebar:
         for f, w in SCORE_WEIGHTS.items():
             st.caption(f"{f.replace('_',' ').title()}: **{w}%**")
 
-
-# ── Load data ─────────────────────────────────────────────────────────────────
-df = load_data()
 
 st.title(APP_TITLE)
 
@@ -304,13 +304,7 @@ if df.empty:
         st.warning("No data. Click **Quick Refresh** in sidebar.")
     st.stop()
 
-# Store company names in session state so the search box above can use them
-if "Name" in df.columns:
-    all_names = sorted(df["Name"].dropna().unique().tolist())
-    if st.session_state.get("all_company_names") != all_names:
-        st.session_state["all_company_names"] = all_names
-
-# Sector filter (populated after data loads)
+# Sector filter
 with st.sidebar:
     secs = sorted(df["Sector"].unique().tolist()) if "Sector" in df.columns else []
     sectors = st.multiselect("Sectors", options=secs, default=secs,
